@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash source-this-script
 
 readonly ignoreDirspec=/var/lib/update-notifier
 readonly ignoreFilename="${SOMETHING_SUBJECT:?}-updates-ignorelist"
