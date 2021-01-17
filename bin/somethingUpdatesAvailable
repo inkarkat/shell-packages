@@ -1,0 +1,106 @@
+#!/bin/bash
+
+readonly ignoreDirspec=/var/lib/update-notifier
+readonly ignoreFilename="${SOMETHING_SUBJECT:?}-updates-ignorelist"
+: ${SOMETHING_SUBJECT_NAME:=$SOMETHING_SUBJECT}
+
+SUDO=sudoWithUnixhome; [ $EUID -eq 0 ] && SUDO=''	# Need superuser rights for updating the ignore list.
+
+printUsage()
+{
+    cat <<HELPTEXT
+List $SOMETHING_SUBJECT_NAME packages that are outdated and can be updated. Exits with 1 if all
+packages are up-to-date. Also prints ignored packages with -v|--verbose. Just
+prints a single summary line with -s|--summary (and with --silent-if-none omits
+that if there are no packages to update).
+HELPTEXT
+    echo
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-s|--summary [--silent-if-none]] [-v|--verbose] [-?|-h|--help]'
+    echo
+    cat <<HELPTEXT
+(Un-)Ignore package matching (anchored) PATTERN [with an available VERSION-PATTERN].
+HELPTEXT
+    echo
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '-i|--ignore PATTERN [--version VERSION-PATTERN]'
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '-I|--no-ignore PATTERN'
+}
+isSummary=
+isSilentIfNone=
+isVerbose=
+action=
+typeset -a actionArgs=()
+versionPattern=
+while [ $# -ne 0 ]
+do
+    case "$1" in
+	--help|-h|-\?)	    shift; printUsage "$0"; exit 0;;
+	--summary|-s)	    shift; isSummary=t;;
+	--silent-if-none)   shift; isSilentIfNone=t;;
+	--verbose|-v)	    shift; isVerbose=t;;
+	--ignore|-i)	    shift; action=ignore; actionArgs=(--update "$1"); shift;;
+	--no-ignore|-I)	    shift; action=unignore; actionArgs=(--delete "$1"); shift;;
+	--version)	    shift; versionPattern="$1"; shift;;
+	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
+	*)		    break;;
+    esac
+done
+if [ $# -gt 0 ]; then
+    printUsage "$0" >&2
+    exit 2
+fi
+
+database()
+{
+    $SUDO nanoDB --basedir "$ignoreDirspec" --table "$ignoreFilename" "$@"
+}
+ignore()
+{
+    database "$@" --value "${versionPattern:-".*"}"
+}
+unignore()
+{
+    database "$@"
+}
+getIgnoreList()
+{
+    SUDO='' # A regular user is enough to read the ignore list.
+    database --get-as-list ' ' --newline-formatting error || \
+	echo 'dummy-package never'
+}
+
+
+if [ "$action" ]; then
+    $action "${actionArgs[@]}"
+    exit $?
+fi
+
+LC_ALL=C ${SOMETHING_SOURCE_COMMAND:-${SOMETHING_SUBJECT}-list-outdated} | \
+    awk \
+	${SOMETHING_FS:+-F "$SOMETHING_FS"} \
+	-v "subjectName=${SOMETHING_SUBJECT_NAME//\\/\\\\}" \
+	-v "isSummary=$isSummary" \
+	-v "isSilentIfNone=$isSilentIfNone" \
+	-v "isVerbose=$isVerbose" \
+	-v "updateHint=${SOMETHING_UPDATE_HINT//\\/\\\\}" \
+'
+{
+    if (NR == FNR) {
+	ignored[$1] = $2
+    } else {
+	if (ignored[$1] && $3 ~ "^" ignored[$1] "$") {
+	    if (isVerbose) {
+		printf "(%s: Ignoring %s -> %s)\n", $1, $2, $3
+	    }
+	} else {
+	    count+=1
+	    if (! isSummary) printf "%s: %s -> %s\n", $1, $2, $3
+	}
+    }
+}
+END {
+    if (isSummary && (! isSilentIfNone || count > 0))
+	printf "%d %s package%s can be updated.\n", count, subjectName, (count == 1 ? "" : "s")
+    if (count == 0) exit(1)
+    if (updateHint != "") print updateHint
+}
+' <(getIgnoreList) -
