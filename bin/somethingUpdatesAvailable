@@ -58,7 +58,7 @@ fi
 
 database()
 {
-    $SUDO nanoDB --basedir "$ignoreDirspec" --table "$ignoreFilename" "$@"
+    $SUDO nanoDB --basedir "$ignoreDirspec" --table "$ignoreFilename" --relaxed-key "$@"
 }
 ignore()
 {
