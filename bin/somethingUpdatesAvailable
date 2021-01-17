@@ -87,13 +87,17 @@ LC_ALL=C ${SOMETHING_SOURCE_COMMAND:-${SOMETHING_SUBJECT}-list-outdated} | \
     if (NR == FNR) {
 	ignored[$1] = $2
     } else {
-	if (ignored[$1] && $3 ~ "^" ignored[$1] "$") {
+	packageName = $1
+	existingVersion = $2
+	availableVersion = $3
+
+	if (ignored[packageName] && availableVersion ~ "^" ignored[packageName] "$") {
 	    if (isVerbose) {
-		printf "(%s: Ignoring %s -> %s)\n", $1, $2, $3
+		printf "(%s: Ignoring %s -> %s)\n", packageName, existingVersion, availableVersion
 	    }
 	} else {
 	    count+=1
-	    if (! isSummary) printf "%s: %s -> %s\n", $1, $2, $3
+	    if (! isSummary) printf "%s: %s -> %s\n", packageName, existingVersion, availableVersion
 	}
     }
 }
