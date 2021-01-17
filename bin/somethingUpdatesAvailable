@@ -6,6 +6,13 @@ readonly ignoreFilename="${SOMETHING_SUBJECT:?}-updates-ignorelist"
 
 SUDO=sudoWithUnixhome; [ $EUID -eq 0 ] && SUDO=''	# Need superuser rights for updating the ignore list.
 
+: ${SOMETHING_VERSIONCHANGE_PREFIX=[01m}
+: ${SOMETHING_VERSIONCHANGE_SUFFIX=[0m}
+if [ ! -t 1 ]; then
+    SOMETHING_VERSIONCHANGE_PREFIX=
+    SOMETHING_VERSIONCHANGE_SUFFIX=
+fi
+
 printUsage()
 {
     cat <<HELPTEXT
@@ -78,6 +85,8 @@ LC_ALL=C ${SOMETHING_SOURCE_COMMAND:-${SOMETHING_SUBJECT}-list-outdated} | \
     awk \
 	${SOMETHING_FS:+-F "$SOMETHING_FS"} \
 	-v "subjectName=${SOMETHING_SUBJECT_NAME//\\/\\\\}" \
+	-v "versionChangePrefix=${SOMETHING_VERSIONCHANGE_PREFIX//\\/\\\\}" \
+	-v "versionChangeSuffix=${SOMETHING_VERSIONCHANGE_SUFFIX//\\/\\\\}" \
 	-v "isSummary=$isSummary" \
 	-v "isSilentIfNone=$isSilentIfNone" \
 	-v "isVerbose=$isVerbose" \
@@ -90,14 +99,22 @@ LC_ALL=C ${SOMETHING_SOURCE_COMMAND:-${SOMETHING_SUBJECT}-list-outdated} | \
 	packageName = $1
 	existingVersion = $2
 	availableVersion = $3
+	highlightedAvailableVersion = $3
+
+	if (versionChangePrefix != "" || versionChangeSuffix != "") {
+	    for (i = 1; i <= length(existingVersion) && substr(existingVersion, i, 1) == substr(availableVersion, i, 1); ++i) {}
+	    if ((differentTail = substr(availableVersion, i)) != "") {
+		highlightedAvailableVersion = substr(availableVersion, 1, i - 1) versionChangePrefix differentTail versionChangeSuffix
+	    }
+	}
 
 	if (ignored[packageName] && availableVersion ~ "^" ignored[packageName] "$") {
 	    if (isVerbose) {
-		printf "(%s: Ignoring %s -> %s)\n", packageName, existingVersion, availableVersion
+		printf "(%s: Ignoring %s -> %s)\n", packageName, existingVersion, highlightedAvailableVersion
 	    }
 	} else {
 	    count+=1
-	    if (! isSummary) printf "%s: %s -> %s\n", packageName, existingVersion, availableVersion
+	    if (! isSummary) printf "%s: %s -> %s\n", packageName, existingVersion, highlightedAvailableVersion
 	}
     }
 }
