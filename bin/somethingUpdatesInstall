@@ -1,5 +1,8 @@
 #!/bin/bash source-this-script
 
+readonly scriptName="$(basename -- "$0")"
+DEBUGPREFIX=; case ",${DEBUG:-}," in *,${scriptName},*) DEBUGPREFIX=verbose;; *,${scriptName}\!,*) DEBUGPREFIX=echotrace;; esac
+
 SUDO=sudoWithUnixhome; [ $EUID -eq 0 ] && SUDO=''	# Need superuser rights for updating the ignore list.
 
 printUsage()
@@ -66,4 +69,4 @@ done
 
 [ ${#selectedPackages[@]} -eq 0 ] && exit 1
 
-${SOMETHING_UPDATE_COMMAND:?} "${selectedPackages[@]}"
+$DEBUGPREFIX ${SOMETHING_UPDATE_COMMAND:?} "${selectedPackages[@]}"
