@@ -30,3 +30,26 @@ readarray -t packageNames < <(eval "$sourceCommandLine")
 
 packageNamesPlural=s; [ ${#packageNames[@]} -eq 1 ] && packageNamesPlural=
 printf >&2 '%d package%s can be updated.\n' "${#packageNames[@]}" "$packageNamesPlural"
+
+
+if [ ! $EUID ${SOMETHING_SUPERUSER_COMPAREOP:--eq} 0 ]; then
+    echo 'ERROR: Must have superuser rights to update system packages.'
+    exit 2
+fi
+
+readonly scriptName="$(basename -- "$0")"
+askTo()
+{
+    memoizeDecision --memoize-group "$scriptName" --verb 'is' --state 'outdated' --action 'update it' "$@"
+}
+
+typeset -a selectedPackages=()
+for packageName in "${packageNames[@]}"
+do
+    askTo --subject "$packageName" && \
+	selectedPackages+=("$packageName")
+done
+
+[ ${#selectedPackages[@]} -eq 0 ] && exit 1
+
+${SOMETHING_UPDATE_COMMAND:?} "${selectedPackages[@]}"
