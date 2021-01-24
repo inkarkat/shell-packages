@@ -22,7 +22,7 @@ prints a single summary line with -s|--summary (and with --silent-if-none omits
 that if there are no packages to update).
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-s|--summary [--silent-if-none]] [-v|--verbose] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-s|--summary [--silent-if-none]] [-v|--verbose] [--ignore-list IGNORE-LIST-FILESPEC [--ignore-list ...]] [-?|-h|--help]'
     echo
     cat <<HELPTEXT
 (Un-)Ignore package matching (anchored) PATTERN [with an available VERSION-PATTERN].
@@ -37,6 +37,7 @@ isVerbose=
 action=
 typeset -a actionArgs=()
 versionPattern=
+typeset -a additionalIgnoreLists=()
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -44,6 +45,7 @@ do
 	--summary|-s)	    shift; isSummary=t;;
 	--silent-if-none)   shift; isSilentIfNone=t;;
 	--verbose|-v)	    shift; isVerbose=t;;
+	--ignore-list)	    shift; additionalIgnoreLists+=("$1"); shift;;
 	--ignore|-i)	    shift; action=ignore; actionArgs=(--update "$1"); shift;;
 	--no-ignore|-I)	    shift; action=unignore; actionArgs=(--delete "$1"); shift;;
 	--version)	    shift; versionPattern="$1"; shift;;
@@ -73,6 +75,9 @@ getIgnoreList()
     SUDO='' # A regular user is enough to read the ignore list.
     database --get-as-list ' ' --newline-formatting error || \
 	echo 'dummy-package never'
+
+    [ ${#additionalIgnoreLists[@]} -gt 0 ] && \
+	cat -- "${additionalIgnoreLists[@]}"
 }
 
 
