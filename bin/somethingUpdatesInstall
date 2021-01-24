@@ -15,10 +15,12 @@ case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
 esac
 
+isUpdatesAvailableSource=
 if [ -n "$SOMETHING_SOURCE_COMMANDLINE" ]; then
     sourceCommandLine="$SOMETHING_SOURCE_COMMANDLINE"
 elif type -t "${SOMETHING_SUBJECT}-updates-available" >/dev/null ; then
     sourceCommandLine="${SOMETHING_SUBJECT}-updates-available --terse"
+    isUpdatesAvailableSource=t
 elif type -t "${SOMETHING_SUBJECT}-list-outdated" >/dev/null; then
     sourceCommandLine="${SOMETHING_SUBJECT}-list-outdated | field 1"
 else
@@ -46,8 +48,20 @@ askTo()
 typeset -a selectedPackages=()
 for packageName in "${packageNames[@]}"
 do
-    askTo --subject "$packageName" && \
+    if askTo --subject "$packageName"; then
 	selectedPackages+=("$packageName")
+    elif [ "$isUpdatesAvailableSource" ]; then
+	# Check whether the user's reply was persistenly negative, and then
+	# forward this decision to ${SOMETHING_SUBJECT}-updates-available's
+	# ignore list, so that the package will also be ignored when
+	# update-${SOMETHING_SUBJECT}-updates-available updates the notification
+	# shown in MOTD / sent via email.
+	if [[ "$(askTo --subject "$packageName" --get-decision)" =~ ^?(none-)never$ ]]; then
+	    literalPackageName="$(printf %s "$packageName" | sed -e 's/[][\$*+?{}.|()^]/\\&/g')"
+	    "${SOMETHING_SUBJECT}-updates-available" --ignore "$literalPackageName" && \
+		printf 'Put %s onto the ignore list. Use %q --no-ignore %q to unignore.\n' "${SOMETHING_SUBJECT}-updates-available" "$literalPackageName"
+	fi
+    fi
 done
 
 [ ${#selectedPackages[@]} -eq 0 ] && exit 1
