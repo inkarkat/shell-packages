@@ -94,7 +94,7 @@ LC_ALL=C ${SOMETHING_SOURCE_COMMAND:-${SOMETHING_SUBJECT}-list-outdated} | \
 '
 {
     if (NR == FNR) {
-	ignored[$1] = $2
+	ignored[$1] = ($2 == "" ? ".*" : $2)
     } else {
 	packageName = $1
 	existingVersion = $2
