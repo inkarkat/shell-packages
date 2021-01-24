@@ -48,12 +48,13 @@ askTo()
     memoizeDecision --memoize-group "$scriptName" --verb 'is' --state 'outdated' --action 'update it' "$@"
 }
 
+status=0
 typeset -a selectedPackages=()
 for packageName in "${packageNames[@]}"
 do
     if askTo --subject "$packageName"; then
 	if [ "$SOMETHING_SPECIAL_DEFINITIONS" ] && specialInstallInstructions="$(setup-software --yes --select "$packageName" "$SOMETHING_SPECIAL_DEFINITIONS")"; then
-	    $DEBUGPREFIX eval "$specialInstallInstructions" || continue	# Don't try to update this package if its special install instructions have failed.
+	    $DEBUGPREFIX eval "$specialInstallInstructions" || { status=$?; continue; }	# Don't try to update this package if its special install instructions have failed.
 	fi
 
 	selectedPackages+=("$packageName")
@@ -73,4 +74,5 @@ done
 
 [ ${#selectedPackages[@]} -eq 0 ] && exit 1
 
-$DEBUGPREFIX ${SOMETHING_UPDATE_COMMAND:?} "${selectedPackages[@]}"
+$DEBUGPREFIX ${SOMETHING_UPDATE_COMMAND:?} "${selectedPackages[@]}" || status=$?
+exit $status
