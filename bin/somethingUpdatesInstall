@@ -1,0 +1,78 @@
+#!/bin/bash source-this-script
+
+readonly scriptName="$(basename -- "$0")"
+DEBUGPREFIX=; case ",${DEBUG:-}," in *,${scriptName},*) DEBUGPREFIX=verbose;; *,${scriptName}\!,*) DEBUGPREFIX=echotrace;; esac
+
+SUDO=sudoWithUnixhome; [ $EUID -eq 0 ] && SUDO=''	# Need superuser rights for updating the ignore list.
+
+printUsage()
+{
+    cat <<HELPTEXT
+Offers to update $SOMETHING_SUBJECT_NAME packages that are outdated, and memorizes the
+choices for future runs. Exits with 99 if all packages are up-to-date.
+HELPTEXT
+    echo
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[-?|-h|--help]'
+}
+case "$1" in
+    --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+esac
+
+isUpdatesAvailableSource=
+if [ -n "$SOMETHING_SOURCE_COMMANDLINE" ]; then
+    sourceCommandLine="$SOMETHING_SOURCE_COMMANDLINE"
+elif type -t "${SOMETHING_SUBJECT}-updates-available" >/dev/null ; then
+    sourceCommandLine="${SOMETHING_SUBJECT}-updates-available --terse"
+    isUpdatesAvailableSource=t
+elif type -t "${SOMETHING_SUBJECT}-list-outdated" >/dev/null; then
+    sourceCommandLine="${SOMETHING_SUBJECT}-list-outdated | field 1"
+else
+    echo >&2 'ASSERT: No source command configured; set SOMETHING_SOURCE_COMMANDLINE first.'; exit 3
+fi
+
+readarray -t packageNames < <(eval "$sourceCommandLine")
+[ ${#packageNames[@]} -eq 0 ] && exit 99
+
+packageNamesPlural=s; [ ${#packageNames[@]} -eq 1 ] && packageNamesPlural=
+printf >&2 '%d package%s can be updated.\n' "${#packageNames[@]}" "$packageNamesPlural"
+
+
+if [ ! $EUID ${SOMETHING_SUPERUSER_COMPAREOP:--eq} 0 ]; then
+    echo 'ERROR: Must have superuser rights to update system packages.'
+    exit 2
+fi
+
+readonly scriptName="$(basename -- "$0")"
+askTo()
+{
+    memoizeDecision --memoize-group "$scriptName" --verb 'is' --state 'outdated' --action 'update it' "$@"
+}
+
+status=0
+typeset -a selectedPackages=()
+for packageName in "${packageNames[@]}"
+do
+    if askTo --subject "$packageName"; then
+	if [ "$SOMETHING_SPECIAL_DEFINITIONS" ] && specialInstallInstructions="$(setup-software --yes --select "$packageName" "$SOMETHING_SPECIAL_DEFINITIONS")"; then
+	    $DEBUGPREFIX eval "$specialInstallInstructions" || { status=$?; continue; }	# Don't try to update this package if its special install instructions have failed.
+	fi
+
+	selectedPackages+=("$packageName")
+    elif [ "$isUpdatesAvailableSource" ]; then
+	# Check whether the user's reply was persistenly negative, and then
+	# forward this decision to ${SOMETHING_SUBJECT}-updates-available's
+	# ignore list, so that the package will also be ignored when
+	# update-${SOMETHING_SUBJECT}-updates-available updates the notification
+	# shown in MOTD / sent via email.
+	if [[ "$(askTo --subject "$packageName" --get-decision)" =~ ^?(none-)never$ ]]; then
+	    literalPackageName="$(printf %s "$packageName" | sed -e 's/[][\$*+?{}.|()^]/\\&/g')"
+	    "${SOMETHING_SUBJECT}-updates-available" --ignore "$literalPackageName" && \
+		printf 'Put %s onto the ignore list. Use %q --no-ignore %q to unignore.\n' "${SOMETHING_SUBJECT}-updates-available" "$literalPackageName"
+	fi
+    fi
+done
+
+[ ${#selectedPackages[@]} -eq 0 ] && exit 1
+
+$DEBUGPREFIX ${SOMETHING_UPDATE_COMMAND:?} "${selectedPackages[@]}" || status=$?
+exit $status
