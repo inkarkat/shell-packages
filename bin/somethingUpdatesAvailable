@@ -17,12 +17,13 @@ printUsage()
 {
     cat <<HELPTEXT
 List $SOMETHING_SUBJECT_NAME packages that are outdated and can be updated. Exits with 1 if all
-packages are up-to-date. Also prints ignored packages with -v|--verbose. Just
-prints a single summary line with -s|--summary (and with --silent-if-none omits
-that if there are no packages to update).
+packages are up-to-date. Also prints ignored packages with -v|--verbose, or just
+the plain package names with -V|--terse. Just prints a single summary line with
+-s|--summary (and with --silent-if-none omits that if there are no packages to
+update).
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" '[-s|--summary [--silent-if-none]] [-v|--verbose] [--ignore-list IGNORE-LIST-FILESPEC [--ignore-list ...]] [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" '[-s|--summary [--silent-if-none]] [-v|--verbose|-V|--terse] [--ignore-list IGNORE-LIST-FILESPEC [--ignore-list ...]] [-?|-h|--help]'
     echo
     cat <<HELPTEXT
 (Un-)Ignore package matching (anchored) PATTERN [with an available VERSION-PATTERN].
@@ -34,6 +35,7 @@ HELPTEXT
 isSummary=
 isSilentIfNone=
 isVerbose=
+isTerse=
 action=
 typeset -a actionArgs=()
 versionPattern=
@@ -45,6 +47,7 @@ do
 	--summary|-s)	    shift; isSummary=t;;
 	--silent-if-none)   shift; isSilentIfNone=t;;
 	--verbose|-v)	    shift; isVerbose=t;;
+	--terse|-V)	    shift; isTerse=t;;
 	--ignore-list)	    shift; additionalIgnoreLists+=("$1"); shift;;
 	--ignore|-i)	    shift; action=ignore; actionArgs=(--update "$1"); shift;;
 	--no-ignore|-I)	    shift; action=unignore; actionArgs=(--delete "$1"); shift;;
@@ -54,9 +57,14 @@ do
     esac
 done
 if [ $# -gt 0 ]; then
-    printUsage "$0" >&2
+    printUsage "$0"
     exit 2
-fi
+elif [ "$isVerbose" ] && [ "$isTerse" ]; then
+    echo 'ERROR: Cannot combine --verbose and --terse.'
+    echo
+    printUsage "$0"
+    exit 2
+fi >&2
 
 database()
 {
@@ -95,6 +103,7 @@ LC_ALL=C ${SOMETHING_SOURCE_COMMAND:-${SOMETHING_SUBJECT}-list-outdated} | \
 	-v "isSummary=$isSummary" \
 	-v "isSilentIfNone=$isSilentIfNone" \
 	-v "isVerbose=$isVerbose" \
+	-v "isTerse=$isTerse" \
 	-v "updateHint=${SOMETHING_UPDATE_HINT//\\/\\\\}" \
 '
 {
@@ -119,7 +128,13 @@ LC_ALL=C ${SOMETHING_SOURCE_COMMAND:-${SOMETHING_SUBJECT}-list-outdated} | \
 	    }
 	} else {
 	    count+=1
-	    if (! isSummary) printf "%s: %s -> %s\n", packageName, existingVersion, highlightedAvailableVersion
+	    if (! isSummary) {
+		if (isTerse) {
+		    printf "%s\n", packageName
+		} else {
+		    printf "%s: %s -> %s\n", packageName, existingVersion, highlightedAvailableVersion
+		}
+	    }
 	}
     }
 }
@@ -127,6 +142,6 @@ END {
     if (isSummary && (! isSilentIfNone || count > 0))
 	printf "%d %s package%s can be updated.\n", count, subjectName, (count == 1 ? "" : "s")
     if (count == 0) exit(1)
-    if (updateHint != "") print updateHint
+    if (! isTerse && updateHint != "") print updateHint
 }
 ' <(getIgnoreList) -
