@@ -94,7 +94,7 @@ if [ "$action" ]; then
     exit $?
 fi
 
-LC_ALL=C ${SOMETHING_SOURCE_COMMAND:-${SOMETHING_SUBJECT}-list-outdated} | \
+LC_ALL=C eval "${SOMETHING_SOURCE_COMMANDLINE:-${SOMETHING_SUBJECT}-list-outdated}" | \
     awk \
 	${SOMETHING_FS:+-F "$SOMETHING_FS"} \
 	-v "subjectName=${SOMETHING_SUBJECT_NAME//\\/\\\\}" \
