@@ -52,6 +52,10 @@ typeset -a selectedPackages=()
 for packageName in "${packageNames[@]}"
 do
     if askTo --subject "$packageName"; then
+	if [ "$SOMETHING_SPECIAL_DEFINITIONS" ] && specialInstallInstructions="$(setup-software --yes --select "$packageName" "$SOMETHING_SPECIAL_DEFINITIONS")"; then
+	    $DEBUGPREFIX eval "$specialInstallInstructions" || continue	# Don't try to update this package if its special install instructions have failed.
+	fi
+
 	selectedPackages+=("$packageName")
     elif [ "$isUpdatesAvailableSource" ]; then
 	# Check whether the user's reply was persistenly negative, and then
