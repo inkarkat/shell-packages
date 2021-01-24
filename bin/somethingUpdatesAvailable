@@ -26,7 +26,8 @@ HELPTEXT
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-s|--summary [--silent-if-none]] [-v|--verbose|-V|--terse] [--ignore-list IGNORE-LIST-FILESPEC [--ignore-list ...]] [-?|-h|--help]'
     echo
     cat <<HELPTEXT
-(Un-)Ignore package matching (anchored) PATTERN [with an available VERSION-PATTERN].
+(Un-)Ignore package matching PATTERN [with an available VERSION-PATTERN].
+PATTERN is an AWK-style anchored extended regular expression.
 HELPTEXT
     echo
     printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '-i|--ignore PATTERN [--version VERSION-PATTERN]'
