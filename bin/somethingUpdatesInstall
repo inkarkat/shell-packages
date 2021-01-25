@@ -42,7 +42,6 @@ if [ ! $EUID ${SOMETHING_SUPERUSER_COMPAREOP:--eq} 0 ]; then
     exit 2
 fi
 
-readonly scriptName="$(basename -- "$0")"
 askTo()
 {
     memoizeDecision --memoize-group "$scriptName" --verb 'is' --state 'outdated' --action 'update it' "$@"
