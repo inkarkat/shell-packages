@@ -12,7 +12,7 @@ Offers to update $SOMETHING_SUBJECT_NAME packages that are outdated, and memoriz
 choices for future runs. Exits with 99 if all packages are up-to-date.
 HELPTEXT
     echo
-    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[-?|-h|--help]'
+    printf 'Usage: [DEBUG=%q] %s%q [--preserve-env=DEBUG] %s\n' "$scriptName" "${SUDO}${SUDO:+ }" "$(basename "$1")" '[-?|-h|--help]'
 }
 case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
