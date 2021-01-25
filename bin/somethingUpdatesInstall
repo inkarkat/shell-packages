@@ -52,8 +52,8 @@ typeset -a selectedPackages=()
 for packageName in "${packageNames[@]}"
 do
     if askTo --subject "$packageName"; then
-	if [ "$SOMETHING_SPECIAL_DEFINITIONS" ] && specialInstallInstructions="$(setup-software --yes --select "$packageName" "$SOMETHING_SPECIAL_DEFINITIONS")"; then
-	    $DEBUGPREFIX eval "$specialInstallInstructions" || { status=$?; continue; }	# Don't try to update this package if its special install instructions have failed.
+	if [ "$SOMETHING_SPECIAL_DEFINITIONS" ] && specialInstallCommandLine="$(setup-software --yes --select "$packageName" "$SOMETHING_SPECIAL_DEFINITIONS")"; then
+	    $DEBUGPREFIX eval "$specialInstallCommandLine" || { status=$?; continue; }	# Don't try to update this package if its special install instructions have failed.
 	fi
 
 	selectedPackages+=("$packageName")
