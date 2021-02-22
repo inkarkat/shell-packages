@@ -37,7 +37,7 @@ if [ -e "$SYNAPTIC_PREF_FILESPEC" ] && multilinegrep --quiet --fixed-strings --l
 fi
 # TODO: Implement updating existing version to a different passed version.
 
-if [ ! -w "$SYNAPTIC_PREF_FILESPEC" ]; then
+if ! touch-p "$SYNAPTIC_PREF_FILESPEC" 2>/dev/null; then
     printf >&2 'ERROR: Cannot write to %s.\n' "$SYNAPTIC_PREF_FILESPEC"
     exit 3
 fi
