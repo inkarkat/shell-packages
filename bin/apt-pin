@@ -31,7 +31,17 @@ readonly completePackageLines="$prescriptivePackageLines
 Pin-Priority: 1001
 "
 
+ensureAptPrefLinkToSynaptic()
+{
+    apt-pin-link-to-synaptic --check && return
+
+    apt-pin-link-to-synaptic && \
+	echo "Linked Synaptic's pinning file with apt."
+}
+
 if [ -e "$SYNAPTIC_PREF_FILESPEC" ] && multilinegrep --quiet --fixed-strings --line-regexp -e "$prescriptivePackageLines" -- "$SYNAPTIC_PREF_FILESPEC"; then
+    ensureAptPrefLinkToSynaptic
+
     printf >&2 'Package %s is already pinned to version %s.\n' "$packageName" "$packageVersion"
     exit 1
 fi
@@ -41,5 +51,7 @@ if ! touch-p "$SYNAPTIC_PREF_FILESPEC" 2>/dev/null; then
     printf >&2 'ERROR: Cannot write to %s.\n' "$SYNAPTIC_PREF_FILESPEC"
     exit 3
 fi
-printf '%s\n' "$completePackageLines" >> "$SYNAPTIC_PREF_FILESPEC" && \
-    printf 'Package %s is now pinned to version %s.\n' "$packageName" "$packageVersion"
+printf '%s\n' "$completePackageLines" >> "$SYNAPTIC_PREF_FILESPEC" || exit $?
+ensureAptPrefLinkToSynaptic; status=$?
+printf 'Package %s is now pinned to version %s.\n' "$packageName" "$packageVersion"
+exit $status
