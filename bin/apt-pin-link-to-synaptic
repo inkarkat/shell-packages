@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 readonly SYNAPTIC_PREF_FILESPEC=/var/lib/synaptic/preferences
 readonly APT_PREF_LINK_TO_SYNAPTIC=/etc/apt/preferences.d/synaptic
@@ -16,4 +17,5 @@ case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
 esac
 
+touch-p --sudo --no-update --verbose "$SYNAPTIC_PREF_FILESPEC"
 exec addSymlink "$@" --accept-up-to-date --sudo --force -- "$SYNAPTIC_PREF_FILESPEC" "$APT_PREF_LINK_TO_SYNAPTIC"
