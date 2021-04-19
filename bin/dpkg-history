@@ -1,6 +1,0 @@
-#!/bin/bash
-# Source: https://askubuntu.com/a/862847/72217
-
-{ cat /var/log/dpkg.log{,.1}; zcat /var/log/dpkg.log.*.gz; } |
-    egrep --text "^[^ ]* [^ ]* (configure|install|remove|status [^ ]*|trigproc|upgrade) ${1:?}[: ]" |
-    sort --reverse | less --RAW-CONTROL-CHARS
