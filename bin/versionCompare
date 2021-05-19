@@ -33,14 +33,8 @@ largerEqSmaller()
     local commonElementNum=$((${#version1[@]} < ${#version2[@]} ? ${#version1[@]} : ${#version2[@]}))
     for ((i=0; i < commonElementNum; i++))
     do
-	if ((10#${version1[i]} > 10#${version2[i]}))
-	then
-	    return 1
-	fi
-	if ((10#${version1[i]} < 10#${version2[i]}))
-	then
-	    return 2
-	fi
+	((10#${version1[i]} > 10#${version2[i]})) && return 1
+	((10#${version1[i]} < 10#${version2[i]})) && return 2
     done
     return 0
 }
