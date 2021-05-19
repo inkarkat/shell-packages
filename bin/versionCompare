@@ -7,6 +7,7 @@ printUsage()
     cat <<HELPTEXT
 Compare the two passed VERSIONs, either returning 0 (equal), 1 (VERSION1
 larger), 2 (VERSION1 smaller), or the result of the passed compare operation.
+If one version has more elements than the other, these are ignored.
 HELPTEXT
     echo
     printf 'Usage: %q %s\n' "$(basename "$1")" '...VERSION1... [-lt|-le|-eq|-ne|-ge|-gt] ...VERSION2... [-?|-h|--help]'
@@ -29,15 +30,9 @@ largerEqSmaller()
     local i IFS=.
     typeset -a version1=($1) version2=($2)
 
-    # Fill empty fields in version1 with zeros.
-    for ((i=${#version1[@]}; i<${#version2[@]}; i++))
+    local commonElementNum=$((${#version1[@]} < ${#version2[@]} ? ${#version1[@]} : ${#version2[@]}))
+    for ((i=0; i < commonElementNum; i++))
     do
-	version1[i]=0
-    done
-    for ((i=0; i<${#version1[@]}; i++))
-    do
-	[ -n "${version2[i]}" ] || version2[i]=0	# Fill empty fields in version2 with zeros.
-
 	if ((10#${version1[i]} > 10#${version2[i]}))
 	then
 	    return 1
