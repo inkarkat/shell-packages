@@ -18,7 +18,13 @@ fi
 if [ -e /etc/debian_version ]; then
     installCommand='apt-get install'
 elif [ -e /etc/redhat-release ]; then
-    installCommand='yum install'
+    if exists dnf; then
+	installCommand='dnf install'
+    elif exists yum; then
+	installCommand='yum install'
+    else
+	installCommand='<install-command>'
+    fi
 else
     installCommand='<install-command>'
 fi
