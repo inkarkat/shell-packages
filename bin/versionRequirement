@@ -4,9 +4,9 @@ shopt -qs extglob
 printUsage()
 {
     local baseVersionUsage='' baseVersionVar
-    if [ -z "$VERSIONREQUIREMENT_BASE_VERSION" ]; then
-	baseVersionUsage='against VERSIONREQUIREMENT_BASE_VERSION'
-	baseVersionVar='VERSIONREQUIREMENT_BASE_VERSION=X[.x]'
+    if [ -z "$VERSIONREQUIREMENT_BASE_VERSION" -a -z "$VERSIONREQUIREMENT_BASE_COMMANDLINE" ]; then
+	baseVersionUsage='against VERSIONREQUIREMENT_BASE_VERSION / the numeric output of VERSIONREQUIREMENT_BASE_COMMANDLINE'
+	baseVersionVar="VERSIONREQUIREMENT_BASE_VERSION=X[.x]|VERSIONREQUIREMENT_BASE_COMMANDLINE='foo --version'"
     fi
 
     cat <<HELPTEXT
@@ -19,6 +19,15 @@ HELPTEXT
 case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
 esac
+
+if [ -z "$VERSIONREQUIREMENT_BASE_VERSION" -a -n "$VERSIONREQUIREMENT_BASE_COMMANDLINE" ]; then
+    if versionOutput="$(eval "$VERSIONREQUIREMENT_BASE_COMMANDLINE")" && [[ "$versionOutput" =~ [0-9.]+ ]]; then
+	VERSIONREQUIREMENT_BASE_VERSION="${BASH_REMATCH[0]}"
+    else
+	printf >&2 'ERROR: The base version could not be obtained through %s\n' "$VERSIONREQUIREMENT_BASE_COMMANDLINE"
+	exit 3
+    fi
+fi
 
 if [ -z "$VERSIONREQUIREMENT_BASE_VERSION" ]; then
     echo 'ERROR: No base version set in VERSIONREQUIREMENT_BASE_VERSION.'
