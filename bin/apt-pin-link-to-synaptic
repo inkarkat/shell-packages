@@ -13,9 +13,21 @@ HELPTEXT
     echo
     printf 'Usage: [DEBUG=sudo[!]] %q %s\n' "$(basename "$1")" '[--check] [-?|-h|--help]'
 }
+typeset -a checkArg=()
+isCheck=
 case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
+    --check)		checkArg=("$1"); shift; isCheck=t;;
+    -*)			{ echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 esac
+if [ $# -ne 0 ]; then
+    printUsage "$0" >&2
+    exit 2
+fi
 
-touch-p --sudo --no-update --verbose "$SYNAPTIC_PREF_FILESPEC" >&2
-exec addSymlink "$@" --accept-up-to-date --sudo --force -- "$SYNAPTIC_PREF_FILESPEC" "$APT_PREF_LINK_TO_SYNAPTIC"
+if [ "$isCheck" ]; then
+    [ -e "$SYNAPTIC_PREF_FILESPEC" ]
+else
+    touch-p --sudo --no-update --verbose "$SYNAPTIC_PREF_FILESPEC" >&2
+fi
+exec addSymlink "${checkArg[@]}" --accept-up-to-date --sudo --force -- "$SYNAPTIC_PREF_FILESPEC" "$APT_PREF_LINK_TO_SYNAPTIC"
