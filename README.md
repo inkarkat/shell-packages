@@ -1,3 +1,3 @@
 # Shell Packages
 
-A collection of commands for working with the distribution's package management.
+_Commands for working with the distribution's package management._
