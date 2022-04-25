@@ -73,5 +73,5 @@ done
 
 [ ${#selectedPackages[@]} -eq 0 ] && exit 1
 
-$DEBUGPREFIX ${SOMETHING_UPDATE_COMMAND:?} "${selectedPackages[@]}" || status=$?
+eval \$DEBUGPREFIX "${SOMETHING_UPDATE_COMMAND:?}" '"${selectedPackages[@]}"' || status=$?
 exit $status
