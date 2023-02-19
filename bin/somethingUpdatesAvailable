@@ -4,7 +4,7 @@ readonly ignoreDirspec=/var/lib/update-notifier
 readonly ignoreFilename="${SOMETHING_SUBJECT:?}-updates-ignorelist"
 : ${SOMETHING_SUBJECT_NAME:=$SOMETHING_SUBJECT}
 
-SUDO=sudoWithUnixhome; [ $EUID -eq 0 ] && SUDO=''	# Need superuser rights for updating the ignore list.
+: ${SUDO:=sudoWithUnixhome}; [ $EUID -eq 0 ] && SUDO=''	# Need superuser rights for updating the ignore list.
 
 : ${SOMETHING_VERSIONCHANGE_PREFIX=[01m}
 : ${SOMETHING_VERSIONCHANGE_SUFFIX=[0m}

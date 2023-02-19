@@ -3,7 +3,7 @@
 readonly scriptName="$(basename -- "$0")"
 DEBUGPREFIX=; case ",${DEBUG:-}," in *,${scriptName},*) DEBUGPREFIX=verbose;; *,${scriptName}\!,*) DEBUGPREFIX=echotrace;; esac
 
-SUDO=sudoWithUnixhome; [ $EUID -eq 0 ] && SUDO=''	# Need superuser rights for updating the ignore list.
+: ${SUDO:=sudoWithUnixhome}; [ $EUID -eq 0 ] && SUDO=''	# Need superuser rights for updating the ignore list.
 
 printUsage()
 {
