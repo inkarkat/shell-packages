@@ -5,25 +5,34 @@ readonly SYNAPTIC_PREF_FILESPEC=/var/lib/synaptic/preferences
 printUsage()
 {
     cat <<HELPTEXT
-Pin the passed PACKAGE-NAME to PACKAGE-VERSION, so that apt, apt-get, aptitude
-and GUI tools such as synaptic and muon will not offer updates for it.
+Pin the passed PACKAGE-NAME to the currently (to-be) installed / passed
+PACKAGE-VERSION, so that apt, apt-get, aptitude and GUI tools such as synaptic
+and muon will not offer updates for it.
 This is an alternative to apt-mark, which is usable only if you
 install/remove/upgrade software only with apt-get; otherwise you should use
 pinning, either through a UI (in Synaptic: Package > Lock Version), or through
 this command.
 HELPTEXT
     echo
-    printf 'Usage: %q %s\n' "$(basename "$1")" 'PACKAGE-NAME PACKAGE-VERSION [-?|-h|--help]'
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'PACKAGE-NAME [PACKAGE-VERSION] [-?|-h|--help]'
 }
 case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
 esac
-if [ $# -ne 2 ]; then
+if [ $# -lt 1 -o $# -gt 2 ]; then
     printUsage "$0" >&2
     exit 2
 fi
 readonly packageName="${1:?}"; shift
-readonly packageVersion="${1:?}"; shift
+if [ $# -eq 0 ]; then
+    readonly packageVersion="$(apt-version -- "$packageName")"
+    if [ -z "$packageVersion" ]; then
+	printf >&2 'ERROR: Package not found: %s\n' "$packageName"
+	exit 1
+    fi
+else
+    readonly packageVersion="${1:?}"; shift
+fi
 
 readonly prescriptivePackageLines="Package: $packageName
 Pin: version $packageVersion"
