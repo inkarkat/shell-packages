@@ -1,4 +1,5 @@
 #!/bin/bash source-this-script
+shopt -qs nullglob
 
 readonly ignoreDirspec=/var/lib/update-notifier
 readonly ignoreFilename="${SOMETHING_SUBJECT:?}-updates-ignorelist"
@@ -26,13 +27,15 @@ HELPTEXT
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-s|--summary [--silent-if-none]] [-v|--verbose|-V|--terse] [--ignore-list IGNORE-LIST-FILESPEC [--ignore-list ...]] [-?|-h|--help]'
     echo
     cat <<HELPTEXT
-(Un-)Ignore package matching PATTERN [with an available VERSION-PATTERN].
+(Un-)Ignore package matching PATTERN [with an available VERSION-PATTERN] [for a
+specific APPLICATION (i.e. using a separate ignore file)].
 PATTERN is an AWK-style anchored extended regular expression.
 HELPTEXT
     echo
-    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '-i|--ignore PATTERN [--version VERSION-PATTERN]'
-    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '-I|--no-ignore PATTERN'
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -i|--ignore PATTERN [--version VERSION-PATTERN]'
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -I|--no-ignore PATTERN'
 }
+
 isSummary=
 isSilentIfNone=
 isVerbose=
@@ -41,6 +44,7 @@ action=
 typeset -a actionArgs=()
 versionPattern=
 typeset -a additionalIgnoreLists=()
+ignoreFor=
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -50,6 +54,7 @@ do
 	--verbose|-v)	    shift; isVerbose=t;;
 	--terse|-V)	    shift; isTerse=t;;
 	--ignore-list)	    shift; additionalIgnoreLists+=("$1"); shift;;
+	--for)		    shift; ignoreFor="${1:?}"; shift;;
 	--ignore|-i)	    shift; action=ignore; actionArgs=(--update "$1"); shift;;
 	--no-ignore|-I)	    shift; action=unignore; actionArgs=(--delete "$1"); shift;;
 	--version)	    shift; versionPattern="$1"; shift;;
@@ -67,26 +72,43 @@ elif [ "$isVerbose" ] && [ "$isTerse" ]; then
     exit 2
 fi >&2
 
-database()
+databaseModification()
 {
-    $SUDO nanoDB --basedir "$ignoreDirspec" --table "$ignoreFilename" --relaxed-key "$@"
+    if [ -n "$ignoreFor" ]; then
+	# nanoDB will automatically create the basedir if it doesn't exist yet.
+	local basedir="${ignoreDirspec}/${ignoreFilename}.d"
+	local table="$ignoreFor"
+    else
+	local basedir="$ignoreDirspec"
+	local table="$ignoreFilename"
+    fi
+    $SUDO nanoDB --basedir "$basedir" --table "$table" --relaxed-key "$@"
+}
+databaseRead()
+{
+    local filespec="${1:?}"; shift
+    local basedir="$(dirname -- "$filespec")"
+    local table="$(basename -- "$filespec")"
+    # Note: No SUDO; a regular user is enough to read the ignore list.
+    nanoDB --basedir "$basedir" --table "$table" --relaxed-key "$@"
 }
 ignore()
 {
-    database "$@" --value "${versionPattern:-".*"}"
+    databaseModification "$@" --value "${versionPattern:-".*"}"
 }
 unignore()
 {
-    database "$@"
+    databaseModification "$@"
 }
 getIgnoreList()
 {
-    SUDO='' # A regular user is enough to read the ignore list.
-    database --get-as-list ' ' --newline-formatting error || \
-	echo 'dummy-package never'
+    local ignoreFilespec; for ignoreFilespec in "${ignoreDirspec}/${ignoreFilename}" "${ignoreDirspec}/${ignoreFilename}.d"/*
+    do
+	databaseRead "$ignoreFilespec" --get-as-list ' ' --newline-formatting error
+    done
 
-    [ ${#additionalIgnoreLists[@]} -gt 0 ] && \
-	cat -- "${additionalIgnoreLists[@]}"
+    [ ${#additionalIgnoreLists[@]} -gt 0 ] \
+	&& cat -- "${additionalIgnoreLists[@]}"
 }
 
 
@@ -145,4 +167,4 @@ END {
     if (count == 0) exit(1)
     if (! isTerse && updateHint != "") print updateHint
 }
-' <(getIgnoreList) -
+' <(getIgnoreList | outputOrPrintf 'dummy-package never\n') -
