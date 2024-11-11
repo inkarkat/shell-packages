@@ -1,0 +1,22 @@
+#!/bin/bash
+
+readonly scriptName="$(basename -- "${BASH_SOURCE[0]}")"
+
+printUsage()
+{
+    cat <<HELPTEXT
+Print the (installed) package name(s) that provide the given
+FILE(s)|EXECUTABLE(s).
+HELPTEXT
+    echo
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'FILE|EXECUTABLE [...] [-?|-h|--help]'
+}
+
+for packager in apt dpkg    # Note: Prefer apt over dpkg as it covers non-installed packages as well.
+do
+    delegate="${packager}-${scriptName#system-}"
+    exists "$delegate" && exec "$delegate" "$@"
+done
+
+echo >&2 'ERROR: No suitable package manager found.'
+exit 3
