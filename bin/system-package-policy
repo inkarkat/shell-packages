@@ -1,0 +1,21 @@
+#!/bin/bash
+
+readonly scriptName="$(basename -- "${BASH_SOURCE[0]}")"
+
+printUsage()
+{
+    cat <<HELPTEXT
+List the version policy of the given PACKAGE-NAME.
+HELPTEXT
+    echo
+    printf 'Usage: %q %s\n' "$(basename "$1")" 'PACKAGE-NAME [-?|-h|--help]'
+}
+
+for packager in aptitude apt
+do
+    delegate="${packager}-${scriptName#system-}"
+    exists "$delegate" && exec "$delegate" "$@"
+done
+
+echo >&2 'ERROR: No suitable package manager found.'
+exit 3
