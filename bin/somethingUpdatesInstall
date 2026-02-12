@@ -3,7 +3,7 @@
 readonly scriptName="$(basename -- "$0")"
 DEBUGPREFIX=; case ",${DEBUG:-}," in *,${scriptName},*) DEBUGPREFIX=verbose;; *,${scriptName}\!,*) DEBUGPREFIX=echotrace;; esac
 
-: ${SUDO:=sudoWithUnixhome}; [ $EUID -eq 0 ] && SUDO=''	# Need superuser rights for updating the ignore list.
+: ${SUDO:=sudoWithUnixhome}; [ $EUID -eq ${SOMETHING_UID:-0} ] && SUDO=''	# Need superuser rights for updating the ignore list.
 
 printUsage()
 {
@@ -37,8 +37,8 @@ packageNamesPlural=s; [ ${#packageNames[@]} -eq 1 ] && packageNamesPlural=
 printf >&2 '%d package%s can be updated.\n' "${#packageNames[@]}" "$packageNamesPlural"
 
 
-if [ ! $EUID ${SOMETHING_SUPERUSER_COMPAREOP:--eq} 0 ]; then
-    echo 'ERROR: Must have superuser rights to update system packages.'
+if [ ! $EUID ${SOMETHING_USER_COMPAREOP:--eq} ${SOMETHING_UID:-0} ]; then
+    echo "ERROR: Must have ${SOMETHING_UID:+UID }${SOMETHING_UID:-superuser rights} to update system packages."
     exit 2
 fi
 
