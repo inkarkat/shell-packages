@@ -1,4 +1,5 @@
 #!/bin/bash source-this-script
+set -o pipefail
 
 readonly scriptName="$(basename -- "$0")"
 DEBUGPREFIX=; case ",${DEBUG:-}," in *,${scriptName},*) DEBUGPREFIX=verbose;; *,${scriptName}\!,*) DEBUGPREFIX=echotrace;; esac
@@ -18,19 +19,28 @@ case "$1" in
     --help|-h|-\?)	shift; printUsage "$0"; exit 0;;
 esac
 
-isUpdatesAvailableSource=
+hasUpdatesAvailableCommand=
 if [ -n "$SOMETHING_SOURCE_COMMANDLINE" ]; then
     sourceCommandLine="$SOMETHING_SOURCE_COMMANDLINE"
 elif type -t "${SOMETHING_SUBJECT}-updates-available" >/dev/null ; then
     sourceCommandLine="${SOMETHING_SUBJECT}-updates-available --terse"
-    isUpdatesAvailableSource=t
+    hasUpdatesAvailableCommand=t
 elif type -t "${SOMETHING_SUBJECT}-list-outdated" >/dev/null; then
     sourceCommandLine="${SOMETHING_SUBJECT}-list-outdated | field 1"
 else
     echo >&2 'ASSERT: No source command configured; set SOMETHING_SOURCE_COMMANDLINE first.'; exit 3
 fi
+[ ! "$hasUpdatesAvailableCommand" ] && type -t "${SOMETHING_SUBJECT}-updates-available" >/dev/null && hasUpdatesAvailableCommand=t
 
-readarray -t packageNames < <(eval "$sourceCommandLine")
+
+runSourceCommandLine()
+{
+    local sourceCommandLine="${1:?}"; shift
+    invocationMessage --or-passthrough --clear all --message 'Checking for outdated packages ' --initial-delay 2s --spinner --render-timer 1s --command \
+	    "$sourceCommandLine"
+}
+
+readarray -t packageNames < <(runSourceCommandLine "$sourceCommandLine")
 [ ${#packageNames[@]} -eq 0 ] && exit 99
 
 packageNamesPlural=s; [ ${#packageNames[@]} -eq 1 ] && packageNamesPlural=
@@ -47,25 +57,137 @@ askTo()
     memoizeDecision --memoize-group "$scriptName" --verb 'is' --state 'outdated' --action 'update it' "$@"
 }
 
+getInstalledPackageInfo()
+{
+    # Try to get the full info about installed packages, i.e. including the
+    # installed and available versions; we might need the latter for ignoring a
+    # specific version, and the lookup may be costly.
+    local sourceCommandLineWithFullInfo="${sourceCommandLine:?}"
+    sourceCommandLineWithFullInfo="${sourceCommandLineWithFullInfo//' --terse'/}"
+    sourceCommandLineWithFullInfo="${sourceCommandLineWithFullInfo//' | field 1'/}"
+
+    runSourceCommandLine "$sourceCommandLineWithFullInfo"
+}
+
 checkUpdate()
 {
-    typeset -a outdatedPackageNames; readarray -t outdatedPackageNames < <(eval "$sourceCommandLine")
+    typeset -a outdatedPackageNames; readarray -t outdatedPackageNames < <(getInstalledPackageInfo)
+    # Extract the package names in field 1; the normal format may include a colon
+    # after the package name.
+    outdatedPackageNames=("${outdatedPackageNames[@]%%[	 ]*}")
+    outdatedPackageNames=("${outdatedPackageNames[@]%:}")
     [ ${#outdatedPackageNames[@]} -gt 0 ] || return 0
 
     typeset -a packageNamesThatShouldHaveBeenUpdated; readarray -t packageNamesThatShouldHaveBeenUpdated < \
 	<(comm -12 <(printf '%s\n' "${packageNames[@]}" | sort) <(printf '%s\n' "${outdatedPackageNames[@]}" | sort))
     [ ${#packageNamesThatShouldHaveBeenUpdated[@]} -gt 0 ] || return 0
 
-    if [ ${#packageNamesThatShouldHaveBeenUpdated[@]} -eq 1 ]; then
-	packageNamesThatShouldHaveBeenUpdatedPlural=
-	packageNamesThatShouldHaveBeenUpdatedAuxiliaryVerb=is
+    case "${SOMETHING_FAILED_UPDATE_ACTION:-ask}" in
+	suppress)
+	    ;;
+	warn)
+	    printMessageAboutPackagesThatShouldHaveBeenUpdated Warning '' "${packageNamesThatShouldHaveBeenUpdated[@]}";;
+	ask)
+	    printMessageAboutPackagesThatShouldHaveBeenUpdated Warning '' "${packageNamesThatShouldHaveBeenUpdated[@]}"
+
+	    typeset -a choices=('[S]kip and try again next time' '[T]ry again now')
+	    [ "$hasUpdatesAvailableCommand" ] && choices+=('Ignore [v]ersion' 'Ignore [p]ackage (all versions)')
+
+	    local packageName choice
+	    for packageName in "${packageNamesThatShouldHaveBeenUpdated[@]}"
+	    do
+		{ echo >/dev/tty; } 2>/dev/null
+		choice="$(userchoiceFromList --keep-prompt --question "$packageName" --ignore-case -- "${choices[@]}")"; choiceStatus=$?
+		case $choiceStatus in
+		    0)	    ;;
+		    99|125) break;;
+		    *)	    exit 3;;
+		esac
+		case "$choice" in
+		    'Skip and try again next time')
+			;;
+		    'Try again now')
+			eval \$DEBUGPREFIX "${SOMETHING_UPDATE_COMMAND:?}" '"$packageName"' || status=$?
+			;;
+		    'Ignore version')
+			ignoreVersion "$packageName"
+			;;
+		    'Ignore package (all versions)')
+			ignorePackage "$packageName"
+			;;
+		    *)  printf >&2 'ASSERT: Unhandled choice: %s\n' "$choice"; exit 3;;
+		esac
+	    done
+	    ;;
+	ignore-version)
+	    printMessageAboutPackagesThatShouldHaveBeenUpdated Note 'Ignoring particular version of' "${packageNamesThatShouldHaveBeenUpdated[@]}"
+	    local packageName; for packageName in "${packageNamesThatShouldHaveBeenUpdated[@]}"
+	    do
+		ignoreVersion "$packageName"
+	    done
+	    ;;
+	ignore-package)
+	    printMessageAboutPackagesThatShouldHaveBeenUpdated Note 'Ignoring all versions of' "${packageNamesThatShouldHaveBeenUpdated[@]}"
+	    local packageName; for packageName in "${packageNamesThatShouldHaveBeenUpdated[@]}"
+	    do
+		ignorePackage "$packageName"
+	    done
+	    ;;
+	*)  printf >&2 'ASSERT: Invalid SOMETHING_FAILED_UPDATE_ACTION: %s\n' "$SOMETHING_FAILED_UPDATE_ACTION"; exit 3;;
+    esac
+}
+
+printMessageAboutPackagesThatShouldHaveBeenUpdated()
+{
+    local severity="${1:?}"; shift
+    local verb="${1?}"; shift
+
+    if [ $# -eq 1 ]; then
+	local packageNamesPlural=
+	local packageNamesAuxiliaryVerb=is
     else
-	packageNamesThatShouldHaveBeenUpdatedPlural=s
-	packageNamesThatShouldHaveBeenUpdatedAuxiliaryVerb=are
+	local packageNamesPlural=s
+	local packageNamesAuxiliaryVerb=are
     fi
-    printf >&2 '\nWarning: %d package%s should have been updated, but %s still outdated:\n%s\n' \
-	${#packageNamesThatShouldHaveBeenUpdated[@]} "$packageNamesThatShouldHaveBeenUpdatedPlural" "$packageNamesThatShouldHaveBeenUpdatedAuxiliaryVerb" \
-	"$(joinBy ', ' "${packageNamesThatShouldHaveBeenUpdated[@]}")"
+    printf >&2 '\n%s: %s%d package%s %sshould have been updated, but %s still outdated:\n%s\n' \
+	"$severity" "${verb}${verb:+ }" $# "$packageNamesPlural" "${verb:+that }" "$packageNamesAuxiliaryVerb" \
+	"$(joinBy ', ' "$@")"
+}
+
+addIgnorePattern()
+{
+    "${SOMETHING_SUBJECT}-updates-available" --ignore "$@" \
+	|| printf >&2 'ERROR: Failed to add ignore pattern for %s.\n' "$1"
+}
+
+ignorePackage()
+{
+    local packageName="${1:?}"; shift
+    local literalPackagePattern; literalPackagePattern="$(toLiteralRegexp --extended-regexp "$packageName")" || exit 3
+    addIgnorePattern "${literalPackagePattern:?}" \
+	&& printf 'Put %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "${SOMETHING_SUBJECT}-updates-available" "$literalPackagePattern"
+}
+
+ignoreVersion()
+{
+    local packageName="${1:?}"; shift
+    local literalPackagePattern; literalPackagePattern="$(toLiteralRegexp --extended-regexp "$packageName")" || exit 3
+    local packageVersion; packageVersion="$(getInstalledPackageInfo | grep -E "^${literalPackagePattern}[[:space:]:]")" \
+	&& packageVersion="${packageVersion##*[	 ]}" \
+	&& addIgnorePattern "${literalPackagePattern:?}" --version "${packageVersion:?}" \
+	&& printf 'Put %s version %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "$packageVersion" "${SOMETHING_SUBJECT}-updates-available" "$literalPackagePattern" \
+	|| printf >&2 "ERROR: Failed to ignore the ${packageVersion:-unresolved} version of %s.\n" "$packageName"
+}
+
+getPackageVersion()
+{
+    local packageName="${1:?}"; shift
+    LC_ALL=C eval "${SOMETHING_SOURCE_COMMANDLINE:-${SOMETHING_SUBJECT}-list-outdated}" | \
+	awk \
+	    ${SOMETHING_FS:+-F "$SOMETHING_FS"} \
+	    -v "packageName=${packageName//\\/\\\\}" '
+$1 == packageName { print $3; }
+'
 }
 
 
@@ -79,17 +201,14 @@ do
 	fi
 
 	selectedPackages+=("$packageName")
-    elif [ "$isUpdatesAvailableSource" ]; then
+    elif [ "$hasUpdatesAvailableCommand" ]; then
 	# Check whether the user's reply was persistently negative, and then
 	# forward this decision to ${SOMETHING_SUBJECT}-updates-available's
 	# ignore list, so that the package will also be ignored when
 	# update-${SOMETHING_SUBJECT}-updates-available updates the notification
 	# shown in MOTD / sent via email.
-	if [[ "$(askTo --subject "$packageName" --get-decision)" =~ ^?(none-)never$ ]]; then
-	    literalPackageName="$(printf %s "$packageName" | sed -e 's/[][\$*+?{}.|()^]/\\&/g')"
-	    "${SOMETHING_SUBJECT}-updates-available" --ignore "$literalPackageName" && \
-		printf 'Put %s onto the ignore list. Use %q --no-ignore %q to unignore.\n' "${SOMETHING_SUBJECT}-updates-available" "$literalPackageName"
-	fi
+	[[ "$(askTo --subject "$packageName" --get-decision)" =~ ^?(none-)never$ ]] \
+	    && ignorePackage "$packageName"
     fi
 done
 
