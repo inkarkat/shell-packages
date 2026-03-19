@@ -47,6 +47,28 @@ askTo()
     memoizeDecision --memoize-group "$scriptName" --verb 'is' --state 'outdated' --action 'update it' "$@"
 }
 
+checkUpdate()
+{
+    typeset -a outdatedPackageNames; readarray -t outdatedPackageNames < <(eval "$sourceCommandLine")
+    [ ${#outdatedPackageNames[@]} -gt 0 ] || return 0
+
+    typeset -a packageNamesThatShouldHaveBeenUpdated; readarray -t packageNamesThatShouldHaveBeenUpdated < \
+	<(comm -12 <(printf '%s\n' "${packageNames[@]}" | sort) <(printf '%s\n' "${outdatedPackageNames[@]}" | sort))
+    [ ${#packageNamesThatShouldHaveBeenUpdated[@]} -gt 0 ] || return 0
+
+    if [ ${#packageNamesThatShouldHaveBeenUpdated[@]} -eq 1 ]; then
+	packageNamesThatShouldHaveBeenUpdatedPlural=
+	packageNamesThatShouldHaveBeenUpdatedAuxiliaryVerb=is
+    else
+	packageNamesThatShouldHaveBeenUpdatedPlural=s
+	packageNamesThatShouldHaveBeenUpdatedAuxiliaryVerb=are
+    fi
+    printf >&2 '\nWarning: %d package%s should have been updated, but %s still outdated:\n%s\n' \
+	${#packageNamesThatShouldHaveBeenUpdated[@]} "$packageNamesThatShouldHaveBeenUpdatedPlural" "$packageNamesThatShouldHaveBeenUpdatedAuxiliaryVerb" \
+	"$(joinBy ', ' "${packageNamesThatShouldHaveBeenUpdated[@]}")"
+}
+
+
 status=0
 typeset -a selectedPackages=()
 for packageName in "${packageNames[@]}"
@@ -74,4 +96,7 @@ done
 [ ${#selectedPackages[@]} -eq 0 ] && exit 1
 
 eval \$DEBUGPREFIX "${SOMETHING_UPDATE_COMMAND:?}" '"${selectedPackages[@]}"' || status=$?
+
+[ "$SOMETHING_NO_CHECK_UPDATE" ] || checkUpdate
+
 exit $status
