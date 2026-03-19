@@ -58,7 +58,7 @@ do
 
 	selectedPackages+=("$packageName")
     elif [ "$isUpdatesAvailableSource" ]; then
-	# Check whether the user's reply was persistenly negative, and then
+	# Check whether the user's reply was persistently negative, and then
 	# forward this decision to ${SOMETHING_SUBJECT}-updates-available's
 	# ignore list, so that the package will also be ignored when
 	# update-${SOMETHING_SUBJECT}-updates-available updates the notification
