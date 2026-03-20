@@ -115,7 +115,7 @@ checkUpdate()
 	    printMessageAboutPackagesThatShouldHaveBeenUpdated Warning '' "${packageNamesThatShouldHaveBeenUpdated[@]}"
 
 	    typeset -a choices=('[S]kip and try again next time' '[T]ry again now')
-	    [ "$hasUpdatesAvailableCommand" ] && choices+=('Ignore [v]ersion' 'Ignore [p]ackage (all versions)')
+	    [ "$hasUpdatesAvailableCommand" ] && choices+=('Ignore currently offered [v]ersion' 'Ignore [e]ntered version pattern' 'Ignore [p]ackage (all versions)')
 
 	    local packageName choice
 	    for packageName in "${packageNamesThatShouldHaveBeenUpdated[@]}"
@@ -131,14 +131,13 @@ checkUpdate()
 		    'Skip and try again next time')
 			;;
 		    'Try again now')
-			eval \$DEBUGPREFIX "${SOMETHING_UPDATE_COMMAND:?}" '"$packageName"' || status=$?
-			;;
-		    'Ignore version')
-			ignoreVersion "$packageName"
-			;;
+			eval \$DEBUGPREFIX "${SOMETHING_UPDATE_COMMAND:?}" '"$packageName"' || status=$?;;
+		    'Ignore currently offered version')
+			ignoreVersion "$packageName";;
+		    'Ignore entered version pattern')
+			ignoreEnteredVersion "$packageName";;
 		    'Ignore package (all versions)')
-			ignorePackage "$packageName"
-			;;
+			ignorePackage "$packageName";;
 		    *)  printf >&2 'ASSERT: Unhandled choice: %s\n' "$choice"; exit 3;;
 		esac
 	    done
@@ -208,6 +207,17 @@ ignoreVersion()
 	&& addIgnorePattern "${literalPackagePattern:?}" --version "${packageVersion:?}" \
 	&& printf 'Put %s version %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "$packageVersion" "${SOMETHING_SUBJECT}-updates-available" "$literalPackagePattern" \
 	|| printf >&2 "ERROR: Failed to ignore the ${packageVersion:-unresolved} version of %s.\n" "$packageName"
+}
+
+ignoreEnteredVersion()
+{
+    local packageName="${1:?}"; shift
+    local literalPackagePattern; literalPackagePattern="$(toLiteralRegexp --extended-regexp "$packageName")" || exit 3
+    local packageVersion; packageVersion="$(getPackageVersion "$packageName" "$literalPackagePattern" | toLiteralRegexp --extended-regexp)"
+    packageVersion="$(userquery -p "$packageName version pattern (anchored extended regexp; .* for all versions): " -r -e -i "$packageVersion")" \
+	&& [ -n '$packageVersion' ] \
+	&& addIgnorePattern "${literalPackagePattern:?}" --version "${packageVersion:?}" \
+	&& printf 'Put %s version-pattern %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "$packageVersion" "${SOMETHING_SUBJECT}-updates-available" "$literalPackagePattern"
 }
 
 
