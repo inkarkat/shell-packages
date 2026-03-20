@@ -91,11 +91,19 @@ checkUpdate()
     outdatedPackageNames=("${outdatedPackageNames[@]%:}")
     [ ${#outdatedPackageNames[@]} -gt 0 ] || return 0
 
-    typeset -a packageNamesThatShouldHaveBeenUpdated; readarray -t packageNamesThatShouldHaveBeenUpdated < \
+    typeset -a packageNamesNotUpToDate; readarray -t packageNamesNotUpToDate < \
 	<(comm -12 \
 	    <(printf '%s\n' "${originalOutdatedPackageNames[@]}" | sort) \
 	    <(printf '%s\n' "${outdatedPackageNames[@]}" | sort)
 	)
+    [ ${#packageNamesNotUpToDate[@]} -gt 0 ] || return 0
+
+    typeset -a packageNamesThatShouldHaveBeenUpdated=()
+    local packageName; for packageName in "${packageNamesNotUpToDate[@]}"
+    do
+	askTo --recall-only --default yes --subject "$packageName" >/dev/null 2>&1 \
+	    && packageNamesThatShouldHaveBeenUpdated+=("$packageName")
+    done
     [ ${#packageNamesThatShouldHaveBeenUpdated[@]} -gt 0 ] || return 0
 
     case "${SOMETHING_FAILED_UPDATE_ACTION:-ask}" in
