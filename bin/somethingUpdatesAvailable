@@ -27,13 +27,13 @@ HELPTEXT
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-s|--summary [--silent-if-none]] [-v|--verbose|-V|--terse] [--ignore-list IGNORE-LIST-FILESPEC [--ignore-list ...]] [-?|-h|--help]'
     echo
     cat <<HELPTEXT
-(Un-)Ignore package matching PATTERN [with an available VERSION-PATTERN] [for a
-specific APPLICATION (i.e. using a separate ignore file)].
-PATTERN is an AWK-style anchored extended regular expression.
+(Un-)Ignore PACKAGE-NAME [with an available version matching VERSION-PATTERN]
+[for a specific APPLICATION (i.e. using a separate ignore file)].
+VERSION-PATTERN is an AWK-style anchored extended regular expression.
 HELPTEXT
     echo
-    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -i|--ignore PATTERN [--version VERSION-PATTERN]'
-    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -I|--no-ignore PATTERN'
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -i|--ignore PACKAGE-NAME [--version VERSION-PATTERN]'
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -I|--no-ignore PACKAGE-NAME'
 }
 
 isSummary=
@@ -57,6 +57,7 @@ do
 	--for)		    shift; ignoreFor="${1:?}"; shift;;
 	--ignore|-i)	    shift; action=ignore; actionArgs=(--update "$1"); shift;;
 	--no-ignore|-I)	    shift; action=unignore; actionArgs=(--delete "$1"); shift;;
+	--print-ignored)    shift; action=printIgnored;;
 	--version)	    shift; versionPattern="$1"; shift;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		    break;;
@@ -104,11 +105,23 @@ getIgnoreList()
 {
     local ignoreFilespec; for ignoreFilespec in "${ignoreDirspec}/${ignoreFilename}" "${ignoreDirspec}/${ignoreFilename}.d"/*
     do
-	databaseRead "$ignoreFilespec" --get-as-list ' ' --newline-formatting error
+	databaseRead "$ignoreFilespec" --get-as-list "${SOMETHING_FS:- }" --newline-formatting error
     done
 
     [ ${#additionalIgnoreLists[@]} -gt 0 ] \
 	&& cat -- "${additionalIgnoreLists[@]}"
+}
+printIgnored()
+{
+    typeset -a pager=("${PAGER:-less}" --RAW-CONTROL-CHARS)
+    typeset -a formatter=(column -s $'\t' -t)
+    if [ ! -t 1 ]; then
+	pager=()
+	formatter=()
+    fi
+    eval 'getIgnoreList "$@"' \
+	"${formatter:+|}" '"${formatter[@]}"' \
+	"${pager:+|}" '"${pager[@]}"'
 }
 
 
