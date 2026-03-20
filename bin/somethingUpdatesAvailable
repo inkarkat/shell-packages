@@ -27,13 +27,13 @@ HELPTEXT
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-s|--summary [--silent-if-none]] [-v|--verbose|-V|--terse] [--ignore-list IGNORE-LIST-FILESPEC [--ignore-list ...]] [-?|-h|--help]'
     echo
     cat <<HELPTEXT
-(Un-)Ignore package matching PATTERN [with an available VERSION-PATTERN] [for a
-specific APPLICATION (i.e. using a separate ignore file)].
-PATTERN is an AWK-style anchored extended regular expression.
+(Un-)Ignore PACKAGE-NAME [with an available version matching VERSION-PATTERN]
+[for a specific APPLICATION (i.e. using a separate ignore file)].
+VERSION-PATTERN is an AWK-style anchored extended regular expression.
 HELPTEXT
     echo
-    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -i|--ignore PATTERN [--version VERSION-PATTERN]'
-    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -I|--no-ignore PATTERN'
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -i|--ignore PACKAGE-NAME [--version VERSION-PATTERN]'
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -I|--no-ignore PACKAGE-NAME'
 }
 
 isSummary=
