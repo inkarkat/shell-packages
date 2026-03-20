@@ -105,7 +105,7 @@ getIgnoreList()
 {
     local ignoreFilespec; for ignoreFilespec in "${ignoreDirspec}/${ignoreFilename}" "${ignoreDirspec}/${ignoreFilename}.d"/*
     do
-	databaseRead "$ignoreFilespec" --get-as-list ' ' --newline-formatting error
+	databaseRead "$ignoreFilespec" --get-as-list "${SOMETHING_FS:- }" --newline-formatting error
     done
 
     [ ${#additionalIgnoreLists[@]} -gt 0 ] \
