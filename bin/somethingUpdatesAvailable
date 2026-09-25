@@ -36,10 +36,11 @@ HELPTEXT
     printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -I|--no-ignore PACKAGE-NAME'
     echo
     cat <<HELPTEXT
-List all ignored $SOMETHING_SUBJECT_NAME packages.
+List all / for APPLICATION / with "": without additional ignore lists; ignored
+$SOMETHING_SUBJECT_NAME packages.
 HELPTEXT
     echo
-    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '--list-ignored'
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION|""] --list-ignored'
 }
 
 isSummary=
@@ -50,7 +51,7 @@ action=
 typeset -a actionArgs=()
 versionPattern=
 typeset -a additionalIgnoreLists=()
-ignoreFor=
+unset ignoreFor
 while [ $# -ne 0 ]
 do
     case "$1" in
@@ -60,7 +61,7 @@ do
 	--verbose|-v)	    shift; isVerbose=t;;
 	--terse|-V)	    shift; isTerse=t;;
 	--ignore-list)	    shift; additionalIgnoreLists+=("$1"); shift;;
-	--for)		    shift; ignoreFor="${1:?}"; shift;;
+	--for)		    shift; ignoreFor="${1?}"; shift;;
 	--ignore|-i)	    shift; action=ignore; actionArgs=(--update "$1"); shift;;
 	--no-ignore|-I)	    shift; action=unignore; actionArgs=(--delete "$1"); shift;;
 	--list-ignored)	    shift; action=listIgnored;;
@@ -109,12 +110,15 @@ unignore()
 }
 getIgnoreList()
 {
-    local ignoreFilespec; for ignoreFilespec in "${ignoreDirspec}/${ignoreFilename}" "${ignoreDirspec}/${ignoreFilename}.d"/*
+    [ $# -eq 0 ] \
+	&& typeset -a ignoreFilespecs=("${ignoreDirspec}/${ignoreFilename}" "${ignoreDirspec}/${ignoreFilename}.d"/*) \
+	|| typeset -a ignoreFilespecs=("$@")
+    local ignoreFilespec; for ignoreFilespec in "${ignoreFilespecs[@]}"
     do
 	databaseRead "$ignoreFilespec" --get-as-list "${SOMETHING_FS:- }" --newline-formatting error
     done
 
-    [ ${#additionalIgnoreLists[@]} -gt 0 ] \
+    [ $# -eq 0 -a ${#additionalIgnoreLists[@]} -gt 0 ] \
 	&& cat -- "${additionalIgnoreLists[@]}"
 }
 listIgnored()
@@ -125,7 +129,15 @@ listIgnored()
 	pager=()
 	formatter=()
     fi
-    eval 'getIgnoreList "$@"' \
+
+    typeset -a ignoreFilespec=()
+    if [ -n "$ignoreFor" ]; then
+	ignoreFilespec+=("${ignoreDirspec}/${ignoreFilename}.d/${ignoreFor}")
+    elif [ -n "${ignoreFor+t}" ]; then
+	ignoreFilespec+=("${ignoreDirspec}/${ignoreFilename}")
+    fi
+
+    eval 'getIgnoreList "${ignoreFilespec[@]}"' \
 	"${formatter:+|}" '"${formatter[@]}"' \
 	"${pager:+|}" '"${pager[@]}"'
 }
