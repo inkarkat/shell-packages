@@ -41,6 +41,12 @@ $SOMETHING_SUBJECT_NAME packages.
 HELPTEXT
     echo
     printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION|""] --list-ignored'
+    echo
+    cat <<HELPTEXT
+Get the ignore information (if any) for the PACKAGE-NAME $SOMETHING_SUBJECT_NAME package.
+HELPTEXT
+    echo
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '--get-ignored PACKAGE-NAME'
 }
 
 isSummary=
@@ -65,6 +71,13 @@ do
 	--ignore|-i)	    shift; action=ignore; actionArgs=(--update "$1"); shift;;
 	--no-ignore|-I)	    shift; action=unignore; actionArgs=(--delete "$1"); shift;;
 	--list-ignored)	    shift; action=listIgnored;;
+	--get-ignored)	    shift; action=getIgnored
+			    if [ $# -ne 1 ]; then
+				echo >&2 'ERROR: No PACKAGE-NAME passed.'
+				exit 2
+			    fi
+			    actionArgs=("${1:?}"); shift
+			    ;;
 	--version)	    shift; versionPattern="$1"; shift;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		    break;;
@@ -140,6 +153,13 @@ listIgnored()
     eval 'getIgnoreList "${ignoreFilespec[@]}"' \
 	"${formatter:+|}" '"${formatter[@]}"' \
 	"${pager:+|}" '"${pager[@]}"'
+}
+getIgnored()
+{
+    local packageName="${1:?}"; shift
+    local literalPackagePattern; literalPackagePattern="$(toLiteralRegexp --extended-regexp "$packageName")" || exit 3
+    getIgnoreList \
+	| grep -E "^${literalPackagePattern}${SOMETHING_FS:- }"
 }
 
 
