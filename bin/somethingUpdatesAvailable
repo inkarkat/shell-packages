@@ -34,6 +34,12 @@ HELPTEXT
     echo
     printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -i|--ignore PACKAGE-NAME [--version VERSION-PATTERN]'
     printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -I|--no-ignore PACKAGE-NAME'
+    echo
+    cat <<HELPTEXT
+List all ignored $SOMETHING_SUBJECT_NAME packages.
+HELPTEXT
+    echo
+    printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '--list-ignored'
 }
 
 isSummary=
@@ -57,7 +63,7 @@ do
 	--for)		    shift; ignoreFor="${1:?}"; shift;;
 	--ignore|-i)	    shift; action=ignore; actionArgs=(--update "$1"); shift;;
 	--no-ignore|-I)	    shift; action=unignore; actionArgs=(--delete "$1"); shift;;
-	--print-ignored)    shift; action=printIgnored;;
+	--list-ignored)	    shift; action=listIgnored;;
 	--version)	    shift; versionPattern="$1"; shift;;
 	-*)		    { echo "ERROR: Unknown option \"$1\"!"; echo; printUsage "$0"; } >&2; exit 2;;
 	*)		    break;;
@@ -111,7 +117,7 @@ getIgnoreList()
     [ ${#additionalIgnoreLists[@]} -gt 0 ] \
 	&& cat -- "${additionalIgnoreLists[@]}"
 }
-printIgnored()
+listIgnored()
 {
     typeset -a pager=("${PAGER:-less}" --RAW-CONTROL-CHARS)
     typeset -a formatter=(column -s $'\t' -t)
