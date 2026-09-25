@@ -86,10 +86,10 @@ getInstalledPackageInfo()
 
 checkUpdate()
 {
-    typeset -a outdatedPackageNames; readarray -t outdatedPackageNames < <(getInstalledPackageInfo)
+    typeset -a outdatedPackageInfo=(); readarray -t outdatedPackageInfo < <(getInstalledPackageInfo)
     # Extract the package names in field 1; the normal format may include a colon
     # after the package name.
-    outdatedPackageNames=("${outdatedPackageNames[@]%%${SOMETHING_PACKAGE_AND_VERSION_SEPARATOR}*}")
+    typeset -a outdatedPackageNames=("${outdatedPackageInfo[@]%%${SOMETHING_PACKAGE_AND_VERSION_SEPARATOR}*}")
     [ ${#outdatedPackageNames[@]} -gt 0 ] || return 0
 
     typeset -a packageNamesNotUpToDate; readarray -t packageNamesNotUpToDate < \
@@ -195,7 +195,7 @@ getPackageVersion()
 {
     local packageName="${1:?}"; shift
     local literalPackagePattern; literalPackagePattern="$(toLiteralRegexp --extended-regexp "$packageName")" || exit 3
-    local packageVersion; packageVersion="$(getInstalledPackageInfo | grep -E "^${literalPackagePattern}${SOMETHING_PACKAGE_AND_VERSION_SEPARATOR}")" \
+    local packageVersion; packageVersion="$(printf '%s\n' "${outdatedPackageInfo[@]}" | grep -E "^${literalPackagePattern}${SOMETHING_PACKAGE_AND_VERSION_SEPARATOR}")" \
 	&& printf %s "${packageVersion##*${SOMETHING_AVAILABLE_VERSION_SEPARATOR}}"
 }
 
