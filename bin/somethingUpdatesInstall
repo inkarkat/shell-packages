@@ -121,8 +121,9 @@ checkUpdate()
 	    local packageName choice
 	    for packageName in "${packageNamesThatShouldHaveBeenUpdated[@]}"
 	    do
+		local currentIgnorePattern="$(getCurrentIgnorePattern "$packageName")"
 		{ echo >/dev/tty; } 2>/dev/null
-		choice="$(userchoiceFromList --keep-prompt --question "$packageName" --ignore-case -- "${choices[@]}")"; choiceStatus=$?
+		choice="$(userchoiceFromList --keep-prompt --question "${packageName}${currentIgnorePattern:+ (currently ignoring ${currentIgnorePattern})}" --ignore-case -- "${choices[@]}")"; choiceStatus=$?
 		case $choiceStatus in
 		    0)	    ;;
 		    99|125) break;;
@@ -176,6 +177,11 @@ printMessageAboutPackagesThatShouldHaveBeenUpdated()
     printf >&2 '\n%s: %s%d package%s %sshould have been updated, but %s still outdated:\n%s\n' \
 	"$severity" "${verb}${verb:+ }" $# "$packageNamesPlural" "${verb:+that }" "$packageNamesAuxiliaryVerb" \
 	"$(joinBy ', ' "$@")"
+}
+
+getCurrentIgnorePattern()
+{
+    "${SOMETHING_SUBJECT}-updates-available" --get-ignored "$@"
 }
 
 addIgnorePattern()
