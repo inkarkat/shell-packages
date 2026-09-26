@@ -43,7 +43,8 @@ HELPTEXT
     printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION|""] --list-ignored'
     echo
     cat <<HELPTEXT
-Get the ignore information (if any) for the PACKAGE-NAME $SOMETHING_SUBJECT_NAME package.
+Get the ignored version pattern (if any) for the PACKAGE-NAME $SOMETHING_SUBJECT_NAME
+package.
 HELPTEXT
     echo
     printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '--get-ignored PACKAGE-NAME'
@@ -157,9 +158,13 @@ listIgnored()
 getIgnored()
 {
     local packageName="${1:?}"; shift
-    local literalPackagePattern; literalPackagePattern="$(toLiteralRegexp --extended-regexp "$packageName")" || exit 3
+    local literalPackagePattern; literalPackagePattern="$(toLiteralRegexp "${packageName}")" || exit 3
+    local literalSepPattern; literalSepPattern="$(toLiteralRegexp "${SOMETHING_FS:- }")" || exit 3
     getIgnoreList \
-	| grep -E "^${literalPackagePattern}${SOMETHING_FS:- }"
+	| sed -n \
+	    -e "s/${literalPackagePattern//\//\\/}\\(${literalSepPattern//\//\\/}\\)\\?\$/.*/" \
+	    -e "s/${literalPackagePattern//\//\\/}${literalSepPattern//\//\\/}\\(.*\\)\$/\\1/" \
+	    -e T -e p
 }
 
 
