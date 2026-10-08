@@ -222,12 +222,22 @@ ignoreEnteredVersion()
     local packageName="${1:?}"; shift
     local packageVersion literalPackageVersion; packageVersion="$(getPackageVersion "$packageName")" \
 	&& literalPackageVersion="$(toLiteralRegexp --extended-regexp "$packageVersion")"
+    local offeredPackageVersion="$packageVersion"
 
-    packageVersion="$(userquery -p "$packageName version pattern (anchored extended regexp; .* for all versions): " -r -e -i "$literalPackageVersion")" \
-	&& [ -n '$packageVersion' ] \
-	&& addIgnorePattern "$packageName" --version "${packageVersion:?}" \
-	&& printf 'Put %s version-pattern %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "$packageVersion" "${SOMETHING_SUBJECT}-updates-available" "$packageName" \
-	&& status=0
+    while :
+    do
+	packageVersion="$(userquery -p "$packageName version pattern (anchored extended regexp; .* for all versions): " -r -e -i "$literalPackageVersion")" || return $?
+	[ -n "$packageVersion" ] || return 4
+	if [[ ! "$offeredPackageVersion" =~ ^${packageVersion}$ ]]; then
+	    printf >&2 'ERROR: Entered version pattern /%s/ does not match the currently offered version %s; please try again or clear the pattern to abort.\n' "$packageVersion" "$offeredPackageVersion"
+	    continue
+	fi
+
+	addIgnorePattern "$packageName" --version "${packageVersion:?}" \
+	    && printf 'Put %s version-pattern %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "$packageVersion" "${SOMETHING_SUBJECT}-updates-available" "$packageName" \
+	    && status=0
+	break
+    done
 }
 
 
