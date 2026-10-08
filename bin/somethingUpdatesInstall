@@ -194,7 +194,8 @@ ignorePackage()
 {
     local packageName="${1:?}"; shift
     addIgnorePattern "$packageName" \
-	&& printf 'Put %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "${SOMETHING_SUBJECT}-updates-available" "$packageName"
+	&& printf 'Put %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "${SOMETHING_SUBJECT}-updates-available" "$packageName" \
+	&& status=0
 }
 
 getPackageVersion()
@@ -212,6 +213,7 @@ ignoreVersion()
 	&& literalPackageVersion="$(toLiteralRegexp --extended-regexp "$packageVersion")" \
 	&& addIgnorePattern "$packageName" --version "${literalPackageVersion:?}" \
 	&& printf 'Put %s version %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "$packageVersion" "${SOMETHING_SUBJECT}-updates-available" "$packageName" \
+	&& status=0 \
 	|| printf >&2 "ERROR: Failed to ignore the ${packageVersion:-unresolved} version of %s.\n" "$packageName"
 }
 
@@ -224,7 +226,8 @@ ignoreEnteredVersion()
     packageVersion="$(userquery -p "$packageName version pattern (anchored extended regexp; .* for all versions): " -r -e -i "$literalPackageVersion")" \
 	&& [ -n '$packageVersion' ] \
 	&& addIgnorePattern "$packageName" --version "${packageVersion:?}" \
-	&& printf 'Put %s version-pattern %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "$packageVersion" "${SOMETHING_SUBJECT}-updates-available" "$packageName"
+	&& printf 'Put %s version-pattern %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "$packageVersion" "${SOMETHING_SUBJECT}-updates-available" "$packageName" \
+	&& status=0
 }
 
 
