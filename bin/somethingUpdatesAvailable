@@ -203,9 +203,13 @@ LC_ALL=C eval "${SOMETHING_SOURCE_COMMANDLINE:-${SOMETHING_SUBJECT}-list-outdate
 
 	if (ignored[packageName] && availableVersion ~ "^" ignored[packageName] "$") {
 	    if (isVerbose) {
-		printf "(%s: Ignoring %s -> %s)\n", packageName, existingVersion, highlightedAvailableVersion
+		printf "Ignoring %s %s -> %s on match /%s/\n", packageName, existingVersion, highlightedAvailableVersion, ignored[packageName] > "/dev/stderr"
 	    }
 	} else {
+	    if (ignored[packageName] && isVerbose) {
+		printf "NOT ignoring %s %s -> %s because /%s/ does not match.\n", packageName, existingVersion, highlightedAvailableVersion, ignored[packageName] > "/dev/stderr"
+	    }
+
 	    count+=1
 	    if (! isSummary) {
 		if (isTerse) {
