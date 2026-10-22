@@ -122,8 +122,9 @@ checkUpdate()
 	    for packageName in "${packageNamesThatShouldHaveBeenUpdated[@]}"
 	    do
 		local currentIgnorePattern="$(getCurrentIgnorePattern "$packageName")"
+		local packageVersion="$(getPackageVersion "$packageName")"
 		{ echo >/dev/tty; } 2>/dev/null
-		choice="$(userchoiceFromList --keep-prompt --question "${packageName}${currentIgnorePattern:+ (currently ignoring ${currentIgnorePattern})}" --ignore-case -- "${choices[@]}")"; choiceStatus=$?
+		choice="$(userchoiceFromList --keep-prompt --question "${packageName}${packageVersion:+ }${packageVersion}${currentIgnorePattern:+ (currently ignoring ${currentIgnorePattern})}" --ignore-case -- "${choices[@]}")"; choiceStatus=$?
 		case $choiceStatus in
 		    0)	    ;;
 		    99|125) break;;
@@ -135,9 +136,9 @@ checkUpdate()
 		    'Try again now')
 			${DEBUG:+debugcommand  --for "$scriptName" --eval --} eval "${SOMETHING_UPDATE_COMMAND:?}" '"$packageName"' || status=$?;;
 		    'Ignore currently offered version')
-			ignoreVersion "$packageName";;
+			ignoreVersion "$packageName" "$packageVersion";;
 		    'Ignore entered version pattern')
-			ignoreEnteredVersion "$packageName";;
+			ignoreEnteredVersion "$packageName" "$packageVersion";;
 		    'Ignore package (all versions)')
 			ignorePackage "$packageName";;
 		    *)  printf >&2 'ASSERT: Unhandled choice: %s\n' "$choice"; exit 3;;
@@ -148,7 +149,7 @@ checkUpdate()
 	    printMessageAboutPackagesThatShouldHaveBeenUpdated Note 'Ignoring particular version of' "${packageNamesThatShouldHaveBeenUpdated[@]}"
 	    local packageName; for packageName in "${packageNamesThatShouldHaveBeenUpdated[@]}"
 	    do
-		ignoreVersion "$packageName"
+		ignoreVersion "$packageName" "$(getPackageVersion "$packageName")"
 	    done
 	    ;;
 	ignore-package)
@@ -209,8 +210,13 @@ getPackageVersion()
 ignoreVersion()
 {
     local packageName="${1:?}"; shift
-    local packageVersion literalPackageVersion; packageVersion="$(getPackageVersion "$packageName")" \
-	&& literalPackageVersion="$(toLiteralRegexp --extended-regexp "$packageVersion")" \
+    local packageVersion="${1?}"; shift
+    if [ -z "$packageVersion" ]; then
+	ignoreEnteredVersion "$packageName" "$packageVersion"
+	return $?
+    fi
+
+    local literalPackageVersion; literalPackageVersion="$(toLiteralRegexp --extended-regexp "$packageVersion")" \
 	&& addIgnorePattern "$packageName" --version "${literalPackageVersion:?}" \
 	&& printf 'Put %s version %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "$packageVersion" "${SOMETHING_SUBJECT}-updates-available" "$packageName" \
 	&& status=0 \
@@ -220,8 +226,8 @@ ignoreVersion()
 ignoreEnteredVersion()
 {
     local packageName="${1:?}"; shift
-    local packageVersion literalPackageVersion; packageVersion="$(getPackageVersion "$packageName")" \
-	&& literalPackageVersion="$(toLiteralRegexp --extended-regexp "$packageVersion")"
+    local packageVersion="${1?}"; shift
+    local literalPackageVersion="$(toLiteralRegexp --extended-regexp "$packageVersion")"
     local offeredPackageVersion="$packageVersion"
 
     while :
