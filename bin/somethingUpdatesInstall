@@ -210,7 +210,12 @@ getPackageVersion()
 ignoreVersion()
 {
     local packageName="${1:?}"; shift
-    local packageVersion="${1:?}"; shift
+    local packageVersion="${1?}"; shift
+    if [ -z "$packageVersion" ]; then
+	ignoreEnteredVersion "$packageName" "$packageVersion"
+	return $?
+    fi
+
     local literalPackageVersion; literalPackageVersion="$(toLiteralRegexp --extended-regexp "$packageVersion")" \
 	&& addIgnorePattern "$packageName" --version "${literalPackageVersion:?}" \
 	&& printf 'Put %s version %s onto the ignore list. Use $ %q --no-ignore %q⏎ to unignore.\n' "$packageName" "$packageVersion" "${SOMETHING_SUBJECT}-updates-available" "$packageName" \
