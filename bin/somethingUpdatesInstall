@@ -124,7 +124,7 @@ checkUpdate()
 		local currentIgnorePattern="$(getCurrentIgnorePattern "$packageName")"
 		local packageVersion="$(getPackageVersion "$packageName")"
 		{ echo >/dev/tty; } 2>/dev/null
-		choice="$(userchoiceFromList --keep-prompt --question "${packageName}${currentIgnorePattern:+ (currently ignoring ${currentIgnorePattern})}" --ignore-case -- "${choices[@]}")"; choiceStatus=$?
+		choice="$(userchoiceFromList --keep-prompt --question "${packageName}${packageVersion:+ }${packageVersion}${currentIgnorePattern:+ (currently ignoring ${currentIgnorePattern})}" --ignore-case -- "${choices[@]}")"; choiceStatus=$?
 		case $choiceStatus in
 		    0)	    ;;
 		    99|125) break;;
