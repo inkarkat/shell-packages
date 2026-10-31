@@ -14,40 +14,54 @@ if [ ! -t 1 ]; then
     SOMETHING_VERSIONCHANGE_SUFFIX=
 fi
 
-printUsage()
+LONGUSAGE=
+printLongUsage()
 {
-    cat <<HELPTEXT
+    # This is the long "man page" when launched with the help argument.
+    # It is printed to stdout to allow paging with 'more'.
+    $LONGUSAGE cat <<HELPTEXT
 List $SOMETHING_SUBJECT_NAME packages that are outdated and can be updated. Exits with 1 if all
 packages are up-to-date. Also prints ignored packages with -v|--verbose, or just
 the plain package names with -V|--terse. Just prints a single summary line with
 -s|--summary (and with --silent-if-none omits that if there are no packages to
 update).
 HELPTEXT
-    echo
+    $LONGUSAGE echo
     printf 'Usage: %q %s\n' "$(basename "$1")" '[-s|--summary [--silent-if-none]] [-v|--verbose|-V|--terse] [--ignore-list IGNORE-LIST-FILESPEC [--ignore-list ...]] [-?|-h|--help]'
-    echo
-    cat <<HELPTEXT
+    $LONGUSAGE echo
+    $LONGUSAGE cat <<HELPTEXT
 (Un-)Ignore PACKAGE-NAME [with an available version matching VERSION-PATTERN]
 [for a specific APPLICATION (i.e. using a separate ignore file)].
 VERSION-PATTERN is an AWK-style anchored extended regular expression.
 HELPTEXT
-    echo
+    $LONGUSAGE echo
     printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -i|--ignore PACKAGE-NAME [--version VERSION-PATTERN]'
     printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION] -I|--no-ignore PACKAGE-NAME'
-    echo
-    cat <<HELPTEXT
+    $LONGUSAGE echo
+    $LONGUSAGE cat <<HELPTEXT
 List all / for APPLICATION / with "": without additional ignore lists; ignored
 $SOMETHING_SUBJECT_NAME packages.
 HELPTEXT
-    echo
+    $LONGUSAGE echo
     printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '[--for APPLICATION|""] --list-ignored'
-    echo
-    cat <<HELPTEXT
+    $LONGUSAGE echo
+    $LONGUSAGE cat <<HELPTEXT
 Get the ignored version pattern (if any) for the PACKAGE-NAME $SOMETHING_SUBJECT_NAME
 package.
 HELPTEXT
-    echo
+    $LONGUSAGE echo
     printf 'Usage: %s%q %s\n' "${SUDO}${SUDO:+ }" "$(basename "$1")" '--get-ignored PACKAGE-NAME'
+}
+printShortUsage()
+{
+    LONGUSAGE=: printLongUsage "$1"
+}
+printUsage()
+{
+    # This is the short help when launched with no or incorrect arguments.
+    # It is printed to stderr to avoid accidental processing.
+    printShortUsage "$1" >&2
+    printf >&2 '\nTry %q --help for more information.\n' "$(basename "$1")"
 }
 
 isSummary=
@@ -62,7 +76,7 @@ unset ignoreFor
 while [ $# -ne 0 ]
 do
     case "$1" in
-	--help|-h|-\?)	    shift; printUsage "$0"; exit 0;;
+	--help|-h|-\?)	    shift; printLongUsage "$0"; exit 0;;
 	--summary|-s)	    shift; isSummary=t;;
 	--silent-if-none)   shift; isSilentIfNone=t;;
 	--verbose|-v)	    shift; isVerbose=t;;
